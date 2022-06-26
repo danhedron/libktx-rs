@@ -134,7 +134,8 @@ fn main() {
     let mut lib_dir = etc_unpack::toggle(
         cmake::Config::new(SOURCE_DIR)
             .pic(true)
-            .define("KTX_FEATURE_STATIC_LIBRARY", static_library_flag),
+            .define("KTX_FEATURE_STATIC_LIBRARY", static_library_flag)
+            .define("CMAKE_INSTALL_LIBDIR", "lib"),
     )
     .build();
     println!("Built {} to {:?}", lib_kind, lib_dir);

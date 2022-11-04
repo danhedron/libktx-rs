@@ -131,10 +131,18 @@ fn main() {
     };
     println!("-- Build KTX-Software");
 
+    let target_arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();
+    let isa_neon = if target_arch == "aarch64" { "ON" } else { "OFF" };
+    let isa_sse2 = if target_arch == "x86_64" { "ON" } else { "OFF" };
+    let macos_arch = if target_arch == "aarch64" { "arm64" } else { "x86_64"};
+
     let mut lib_dir = etc_unpack::toggle(
         cmake::Config::new(SOURCE_DIR)
             .pic(true)
             .define("KTX_FEATURE_STATIC_LIBRARY", static_library_flag)
+            .define("ISA_NEON", isa_neon)
+            .define("ISA_SSE2", isa_sse2)
+            .define("CMAKE_OSX_ARCHITECTURES", macos_arch)
             .define("CMAKE_INSTALL_LIBDIR", "lib"),
     )
     .build();

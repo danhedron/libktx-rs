@@ -350,6 +350,70 @@ impl<'a> Texture<'a> {
         }
     }
 
+    /// Add a key-value pair to the key-values of the texture.
+    /// Note that this requires the key-value list be deserialized from a loaded KTX
+    pub fn add_key_value_pair(&mut self, key: &str, value: &[u8]) -> Result<(), KtxError> {
+        // SAFETY: Safe if `self.handle` is sane
+        unsafe {
+            let key = std::ffi::CString::new(key).unwrap();
+            let value_len = value.len() as u32;
+            let value = value.as_ptr().cast::<std::ffi::c_void>();
+            let err = sys::ktxHashList_AddKVPair(
+                &mut (*self.handle).kvDataHead,
+                key.as_ptr(),
+                value_len,
+                value,
+            );
+
+            ktx_result(err, ())
+        }
+    }
+
+    /// Add a key-value pair to the key-values of the texture, null-terminating the string
+    pub fn add_key_value_pair_str(&mut self, key: &str, value: &str) -> Result<(), KtxError> {
+        self.add_key_value_pair(
+            key,
+            std::ffi::CString::new(value).unwrap().as_bytes_with_nul(),
+        )
+    }
+
+    /// Remove a key-value pair in the texture metadata
+    pub fn delete_key_value_pair(&mut self, key: &str) -> () {
+        let key = std::ffi::CString::new(key).unwrap();
+        unsafe {
+            sys::ktxHashList_DeleteKVPair(&mut (*self.handle).kvDataHead, key.as_ptr());
+        }
+    }
+
+    /// Find a key-value pair in the texture metadata
+    pub fn find_key_value_pair(&mut self, key: &str) -> Option<Vec<u8>> {
+        // SAFETY: Safe if `self.handle` is sane
+        unsafe {
+            let key = std::ffi::CString::new(key).unwrap();
+            let mut value_size: std::ffi::c_uint = 0;
+            let mut value_ptr: *mut std::ffi::c_void = std::ptr::null_mut();
+
+            let err = sys::ktxHashList_FindValue(
+                &mut (*self.handle).kvDataHead,
+                key.as_ptr(),
+                &mut value_size,
+                &mut value_ptr,
+            );
+
+            if err == sys::ktx_error_code_e_KTX_SUCCESS {
+                if value_size == 0 || value_ptr.is_null() {
+                    Some(Vec::new())
+                } else {
+                    let value_ptr = value_ptr.cast::<u8>();
+                    let value_len = value_size as usize;
+                    Some(std::slice::from_raw_parts(value_ptr, value_len).to_vec())
+                }
+            } else {
+                None
+            }
+        }
+    }
+
     /// If this [`Texture`] really is a KTX1, returns KTX1-specific functionalities for it.
     pub fn ktx1<'b>(&'b mut self) -> Option<Ktx1<'b, 'a>> {
         // SAFETY: Safe if `self.handle` is sane.
